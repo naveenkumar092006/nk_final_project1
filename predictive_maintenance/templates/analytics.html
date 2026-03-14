@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Analytics — PredictMaint Pro{% endblock %}
+
+{% block content %}
+<div class="pm-section-title mb-4"><i class="bi bi-bar-chart-line text-accent"></i> Analytics Dashboard</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  {% set total_cost = analytics.maintenance_costs | sum %}
+  {% set total_failures = analytics.failure_counts | sum %}
+  {% set avg_downtime = (analytics.downtime_hours | sum / analytics.downtime_hours | length) | round(1) %}
+  {% for label, val, cls in [
+    ('Total Failures (6mo)', total_failures, 'text-danger-pm'),
+    ('Total Maint. Cost', '₹' + "{:,}".format(total_cost), 'text-accent'),
+    ('Avg Monthly Downtime', avg_downtime|string + ' hrs', 'text-warn'),
+    ('Machines Monitored', predictions | length, 'text-accent2')
+  ] %}
+  <div class="col-6 col-md-3">
+    <div class="pm-metric">
+      <div class="value {{ cls }} font-mono" style="font-size:1.5rem">{{ val }}</div>
+      <div class="label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- Monthly Failure Count -->
+  <div class="col-md-6">
+    <div class="pm-card h-100">
+      <div class="pm-card-header"><i class="bi bi-bar-chart"></i> Monthly Failure Count</div>
+      <canvas id="chartFailures" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Failure Type Distribution -->
+  <div class="col-md-6">
+    <div class="pm-card h-100">
+      <div class="pm-card-header"><i class="bi bi-pie-chart"></i> Failure Type Distribution</div>
+      <canvas id="chartTypes" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- Maintenance Cost Trend -->
+  <div class="col-md-6">
+    <div class="pm-card h-100">
+      <div class="pm-card-header"><i class="bi bi-graph-up"></i> Maintenance Cost Trend (INR)</div>
+      <canvas id="chartCost" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Downtime Trend -->
+  <div class="col-md-6">
+    <div class="pm-card h-100">
+      <div class="pm-card-header"><i class="bi bi-clock-history"></i> Downtime Trend (Hours)</div>
+      <canvas id="chartDowntime" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Machine Overview Table -->
+<div class="pm-card mb-3">
+  <div class="pm-card-header"><i class="bi bi-table"></i> Current Machine Health Overview</div>
+  <div class="table-responsive">
+    <table class="pm-table">
+      <thead><tr>
+        <th>Machine ID</th><th>Name</th><th>Health</th><th>Failure Risk</th>
+        <th>RUL Days</th><th>Failure Type</th><th>Status</th><th>Est. Cost</th>
+      </tr></thead>
+      <tbody>
+        {% for mid, pred in predictions.items() %}
+        <tr>
+          <td class="font-mono text-accent">{{ mid }}</td>
+          <td>{{ pred.machine_info.name }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="pm-progress" style="width:60px">
+                <div class="pm-progress-bar {{ 'pm-progress-healthy' if pred.health_score>=60 else 'pm-progress-warning' if pred.health_score>=40 else 'pm-progress-critical' }}"
+                     style="width:{{ pred.health_score }}%"></div>
+              </div>
+              <span class="font-mono">{{ pred.health_score }}%</span>
+            </div>
+          </td>
+          <td class="font-mono {% if pred.failure_probability > 60 %}text-danger-pm{% elif pred.failure_probability > 30 %}text-warn{% else %}text-accent2{% endif %}">
+            {{ pred.failure_probability }}%
+          </td>
+          <td class="font-mono {% if pred.rul_days < 10 %}text-danger-pm{% elif pred.rul_days < 20 %}text-warn{% else %}text-accent2{% endif %}">
+            {{ pred.rul_days }}
+          </td>
+          <td class="text-warn">{{ pred.failure_type }}</td>
+          <td><span class="pm-status pm-status-{{ pred.status | lower }}">● {{ pred.status }}</span></td>
+          <td class="font-mono text-accent">₹{{ "{:,}".format(pred.cost_estimate.total_estimated) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const months = {{ analytics.months | tojson }};
+const failCounts = {{ analytics.failure_counts | tojson }};
+const costs = {{ analytics.maintenance_costs | tojson }};
+const downtime = {{ analytics.downtime_hours | tojson }};
+const failTypes = {{ analytics.failure_type_distribution | tojson }};
+
+const axisStyle = { grid: { color: 'rgba(0,212,255,0.06)' } };
+
+new Chart(document.getElementById('chartFailures').getContext('2d'), {
+  type:'bar',
+  data:{ labels:months, datasets:[{ label:'Failures', data:failCounts,
+    backgroundColor:'rgba(255,51,85,0.6)', borderColor:'#ff3355',
+    borderWidth:1, borderRadius:6 }] },
+  options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:axisStyle, x:{grid:{display:false}} } }
+});
+
+new Chart(document.getElementById('chartTypes').getContext('2d'), {
+  type:'doughnut',
+  data:{ labels:Object.keys(failTypes), datasets:[{
+    data:Object.values(failTypes),
+    backgroundColor:['rgba(0,212,255,0.7)','rgba(255,170,0,0.7)','rgba(200,100,255,0.7)','rgba(0,255,136,0.7)'],
+    borderColor:'rgba(0,0,0,0.3)', borderWidth:2
+  }] },
+  options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{color:'#aabbcc',padding:16} } } }
+});
+
+new Chart(document.getElementById('chartCost').getContext('2d'), {
+  type:'line',
+  data:{ labels:months, datasets:[{
+    ...pmChartDefaults('Cost INR','rgb(0,255,136)'), data:costs
+  }] },
+  options:{ responsive:true, plugins:{legend:{display:false}},
+    scales:{ y:{...axisStyle, ticks:{callback:v=>'₹'+v.toLocaleString()}}, x:{grid:{display:false}} } }
+});
+
+new Chart(document.getElementById('chartDowntime').getContext('2d'), {
+  type:'line',
+  data:{ labels:months, datasets:[{
+    ...pmChartDefaults('Downtime hrs','rgb(255,170,0)'), data:downtime
+  }] },
+  options:{ responsive:true, plugins:{legend:{display:false}},
+    scales:{ y:axisStyle, x:{grid:{display:false}} } }
+});
+</script>
+{% endblock %}

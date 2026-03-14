@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Search — PredictMaint Pro{% endblock %}
+
+{% block content %}
+<div class="pm-section-title mb-3"><i class="bi bi-search text-accent"></i> Machine Search</div>
+
+<!-- SEARCH FORM -->
+<div class="pm-card mb-4">
+  <form method="GET" action="/search" class="d-flex gap-3 align-items-center flex-wrap">
+    <div class="d-flex align-items-center gap-2 flex-grow-1">
+      <label class="text-muted small text-nowrap">Machine ID:</label>
+      <input type="text" name="machine_id" class="form-control pm-input" style="max-width:200px"
+             placeholder="e.g. MCH-102" value="{{ query }}" autofocus>
+    </div>
+    <select name="machine_id" class="form-select pm-select" style="max-width:250px"
+            onchange="this.form.submit()">
+      <option value="">— Select from list —</option>
+      {% for mid, info in machines.items() %}
+      <option value="{{ mid }}" {% if mid==query %}selected{% endif %}>{{ mid }} — {{ info.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="pm-btn"><i class="bi bi-search me-2"></i>Search</button>
+  </form>
+</div>
+
+{% if result %}
+<!-- MACHINE RESULT -->
+{% set r = result %}
+<!-- Status Banner -->
+<div class="pm-card mb-3 {% if r.status=='Critical' %}pm-alert-critical{% endif %}">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <span class="font-mono text-accent" style="font-size:1.2rem;font-weight:700">{{ r.machine_id }}</span>
+        <span class="pm-status pm-status-{{ r.status | lower }}">● {{ r.status }}</span>
+        {% if r.is_anomaly %}<span class="pm-status" style="background:rgba(255,170,0,0.1);color:#ffaa00;border:1px solid rgba(255,170,0,0.3)">⚠ ANOMALY</span>{% endif %}
+      </div>
+      <div class="text-muted">{{ r.machine_info.name }} &nbsp;|&nbsp; {{ r.machine_info.location }} &nbsp;|&nbsp; Operator: {{ r.machine_info.operator }}</div>
+      <div class="text-muted small mt-1">Installed: {{ r.machine_info.installation_date }} &nbsp;|&nbsp; Last Maint: {{ r.machine_info.last_maintenance }}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/report/pdf/{{ r.machine_id }}" class="pm-btn">
+        <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download PDF
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Metrics -->
+<div class="row g-3 mb-3">
+  {% for label, val, cls in [
+    ('Health Score %', r.health_score, 'text-accent2' if r.health_score > 60 else 'text-warn' if r.health_score > 30 else 'text-danger-pm'),
+    ('Failure Risk %', r.failure_probability, 'text-danger-pm' if r.failure_probability > 60 else 'text-warn' if r.failure_probability > 30 else 'text-accent2'),
+    ('RUL Days', r.rul_days, 'text-accent2' if r.rul_days > 20 else 'text-warn' if r.rul_days > 10 else 'text-danger-pm'),
+    ('Anomaly Score', r.anomaly_score, 'text-warn')
+  ] %}
+  <div class="col-6 col-md-3">
+    <div class="pm-metric">
+      <div class="value {{ cls }} font-mono">{{ val }}</div>
+      <div class="label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-3">
+  <!-- Sensor History Chart -->
+  <div class="col-md-8">
+    <div class="pm-card">
+      <div class="pm-card-header"><i class="bi bi-activity"></i> Sensor History</div>
+      <canvas id="chartHistory" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Failure + Solutions -->
+  <div class="col-md-4">
+    <div class="pm-card h-100">
+      <div class="pm-card-header"><i class="bi bi-bug"></i> Failure Analysis</div>
+      <div class="mb-3">
+        <small class="text-muted d-block mb-1">Failure Type</small>
+        <span class="text-warn fw-bold">{{ r.failure_type }}</span>
+      </div>
+      <div class="mb-3">
+        <small class="text-muted d-block mb-1">Root Cause</small>
+        <span>{{ r.root_cause }}</span>
+      </div>
+      <div>
+        <small class="text-muted d-block mb-1">Solutions</small>
+        <ol class="ps-3" style="font-size:0.85rem;color:#aabbcc">
+          {% for s in r.solutions %}<li>{{ s }}</li>{% endfor %}
+        </ol>
+      </div>
+      {% if r.suggested_maintenance_date %}
+      <div class="mt-2 p-2 text-center" style="background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.2);border-radius:8px">
+        <small class="text-warn">Suggested Maintenance</small><br>
+        <strong class="font-mono">{{ r.suggested_maintenance_date }}</strong>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Cost Table -->
+<div class="pm-card mb-3">
+  <div class="pm-card-header"><i class="bi bi-currency-rupee"></i> Maintenance Cost Estimate</div>
+  {% set c = r.cost_estimate %}
+  <div class="row">
+    {% for label, val, cls in [
+      ('Spare Parts Cost', c.spare_parts_cost, 'text-accent'),
+      ('Labor Cost', c.labor_cost, 'text-accent'),
+      ('Total Estimated', c.total_estimated, 'pm-cost-total'),
+      ('Preventive Cost', c.preventive_cost, 'text-muted'),
+      ('Breakdown Repair', c.breakdown_repair, 'text-danger-pm'),
+      ('Estimated Savings', c.estimated_savings, 'pm-savings')
+    ] %}
+    <div class="col-md-2 col-4 text-center mb-2">
+      <div class="pm-metric">
+        <div class="value {{ cls }} font-mono" style="font-size:1.1rem">₹{{ "{:,}".format(val) }}</div>
+        <div class="label">{{ label }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if result and history %}
+<script>
+const h = {{ history | tojson }};
+const labels = h.map(d => d.timestamp.split(' ')[1]);
+new Chart(document.getElementById('chartHistory').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [
+      { ...pmChartDefaults('Temp °C','rgb(0,212,255)'), data: h.map(d=>d.temperature), yAxisID:'y' },
+      { ...pmChartDefaults('Vibration','rgb(255,170,0)'), data: h.map(d=>d.vibration), yAxisID:'y1' },
+      { ...pmChartDefaults('Pressure','rgb(200,100,255)'), data: h.map(d=>d.pressure), yAxisID:'y1' },
+    ]
+  },
+  options: {
+    responsive:true,
+    plugins:{ legend:{ labels:{ color:'#6688aa' } } },
+    scales:{
+      x:{ ticks:{ maxTicksLimit:8, font:{size:10} } },
+      y:{ position:'left', grid:{color:'rgba(0,212,255,0.06)'} },
+      y1:{ position:'right', grid:{display:false} }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

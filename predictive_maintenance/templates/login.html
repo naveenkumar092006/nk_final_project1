@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — PredictMaint Pro</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+body { background: #060a10; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.login-bg {
+  position: fixed; inset: 0; overflow: hidden; z-index: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.05) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(0,255,136,0.04) 0%, transparent 50%);
+}
+.login-grid {
+  position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.login-card {
+  position: relative; z-index: 1;
+  background: rgba(10,18,30,0.95);
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%; max-width: 420px;
+  box-shadow: 0 0 60px rgba(0,212,255,0.08), 0 20px 60px rgba(0,0,0,0.6);
+}
+.login-logo { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; color: #fff; }
+.login-logo span { color: #00d4ff; }
+.login-sub { color: #8899aa; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.form-control { background: rgba(255,255,255,0.05); border: 1px solid rgba(0,212,255,0.2);
+  color: #fff !important; border-radius: 8px; padding: 0.7rem 1rem; }
+.form-control:focus { background: rgba(0,212,255,0.07); border-color: #00d4ff;
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.15); color: #fff; }
+.form-label { color: #8899aa; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.btn-login { background: linear-gradient(135deg, #00d4ff, #0088cc); border: none;
+  color: #fff; font-weight: 700; font-family: 'Rajdhani',sans-serif; letter-spacing: 0.1em;
+  padding: 0.75rem; border-radius: 8px; font-size: 1rem; transition: all 0.3s; }
+.btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,212,255,0.3); }
+.cred-table { background: rgba(0,212,255,0.05); border-radius: 8px; padding: 1rem;
+  font-family: 'Share Tech Mono',monospace; font-size: 0.78rem; color: #668899; }
+.cred-table .role { color: #00d4ff; }
+.cred-table .pass { color: #00ff88; }
+.scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+  background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+  animation: scan 4s linear infinite; }
+@keyframes scan { from { top: 0; } to { top: 100%; } }
+</style>
+</head>
+<body>
+<div class="login-bg"></div>
+<div class="login-grid"></div>
+<div class="scan-line"></div>
+
+<div class="login-card">
+  <div class="text-center mb-4">
+    <div class="mb-2">
+      <i class="bi bi-cpu-fill" style="font-size:2.5rem;color:#00d4ff"></i>
+    </div>
+    <div class="login-logo">PredictMaint <span>Pro</span></div>
+    <div class="login-sub mt-1">Industrial Intelligence Platform</div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} py-2" style="font-size:0.85rem">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Username</label>
+      <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Password</label>
+      <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+    </div>
+    <button type="submit" class="btn btn-login w-100">
+      <i class="bi bi-shield-lock-fill me-2"></i>SECURE LOGIN
+    </button>
+  </form>
+
+  <div class="cred-table mt-4">
+    <div class="mb-1" style="color:#445566;text-transform:uppercase;font-size:0.7rem">Demo Credentials</div>
+    <div><span class="role">admin</span> / <span class="pass">Admin@123</span></div>
+    <div><span class="role">engineer1</span> / <span class="pass">Engineer@123</span></div>
+    <div><span class="role">operator1</span> / <span class="pass">Operator@123</span></div>
+    <div><span class="role">manager1</span> / <span class="pass">Manager@123</span></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

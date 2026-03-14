@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}User Management — PredictMaint Pro{% endblock %}
+
+{% block content %}
+<div class="pm-section-title mb-4"><i class="bi bi-people text-accent"></i> User Management</div>
+
+<div class="row g-4">
+  <!-- User Table -->
+  <div class="col-md-8">
+    <div class="pm-card">
+      <div class="pm-card-header"><i class="bi bi-table"></i> All Users</div>
+      <div class="table-responsive">
+        <table class="pm-table">
+          <thead><tr>
+            <th>ID</th><th>Username</th><th>Role</th><th>Email</th><th>Machine</th><th>Action</th>
+          </tr></thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td class="font-mono text-muted">{{ u.id }}</td>
+              <td class="fw-bold">{{ u.username }}</td>
+              <td>
+                {% set rc = {'admin':'text-danger-pm','engineer':'text-accent','operator':'text-warn','manager':'text-accent2'} %}
+                <span class="pm-badge-role" style="font-size:0.7rem">{{ u.role | upper }}</span>
+              </td>
+              <td class="text-muted small">{{ u.email or '—' }}</td>
+              <td class="font-mono text-muted">{{ u.assigned_machine or '—' }}</td>
+              <td>
+                {% if u.id != current_user.id %}
+                <form method="POST" action="/users/delete/{{ u.id }}" onsubmit="return confirm('Delete user {{ u.username }}?')">
+                  <button type="submit" class="pm-btn pm-btn-danger" style="padding:4px 10px;font-size:0.8rem">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+                {% else %}
+                <span class="text-muted small">You</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create User Form -->
+  <div class="col-md-4">
+    <div class="pm-card">
+      <div class="pm-card-header"><i class="bi bi-person-plus"></i> Create New User</div>
+      <form method="POST" action="/users/create">
+        <div class="mb-3">
+          <label class="text-muted small d-block mb-1">Username</label>
+          <input type="text" name="username" class="form-control pm-input" required>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted small d-block mb-1">Password</label>
+          <input type="password" name="password" class="form-control pm-input" required>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted small d-block mb-1">Role</label>
+          <select name="role" class="form-select pm-select" required>
+            <option value="admin">Admin</option>
+            <option value="engineer">Maintenance Engineer</option>
+            <option value="operator" selected>Operator</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted small d-block mb-1">Email</label>
+          <input type="email" name="email" class="form-control pm-input" placeholder="optional">
+        </div>
+        <div class="mb-3">
+          <label class="text-muted small d-block mb-1">Assigned Machine (Operators)</label>
+          <select name="assigned_machine" class="form-select pm-select">
+            <option value="">— None —</option>
+            {% for mid, info in machines.items() %}
+            <option value="{{ mid }}">{{ mid }} — {{ info.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="pm-btn w-100">
+          <i class="bi bi-person-plus me-2"></i>Create User
+        </button>
+      </form>
+    </div>
+
+    <!-- Role Permissions Card -->
+    <div class="pm-card mt-3">
+      <div class="pm-card-header"><i class="bi bi-shield-check"></i> Role Permissions</div>
+      {% for role, perms in [
+        ('Admin', ['All access', 'User management', 'Reports', 'Cost analytics']),
+        ('Engineer', ['View all machines', 'Update maintenance']),
+        ('Operator', ['View assigned machine', 'See alerts']),
+        ('Manager', ['View reports', 'Cost analytics']),
+      ] %}
+      <div class="mb-2">
+        <span class="pm-badge-role" style="font-size:0.65rem">{{ role | upper }}</span>
+        <ul class="ps-3 mt-1 mb-0" style="font-size:0.78rem;color:#8899aa">
+          {% for p in perms %}<li>{{ p }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
